@@ -1,0 +1,226 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: client-app-configuration
+spec:
+  refreshInterval: 1m
+  secretStoreRef:
+    name: exampleco-configuration #The secret store name we have just created.
+    kind: SecretStore
+  target:
+    name: client-app-configuration # Secret name in k8s
+  dataFrom:
+    - extract:
+        key: {{.Values.clientApp.configurationSecretName}} # name of the GCPSM secret
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "client-app.fullname" . }}
+  labels:
+    {{- include "client-app.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.clientApp.autoscaling.enabled }}
+  replicas: {{ .Values.clientApp.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "client-app.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: Recreate # TODO: This is useful when testing in a small service where there is no room for a rolling update. Change this to RollingUpdate when in production.
+  template:
+    metadata:
+      {{- with .Values.clientApp.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "client-app.labels" . | nindent 8 }}
+        {{- with .Values.clientApp.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.clientApp.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "client-app.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.clientApp.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          # command: ["sleep"] # Use this for troubleshooting, remember to disable livenessProbe and readinessProbe
+          # args: ["9999"]
+          command: ["gunicorn"]
+          args: ["service.app:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-t", "920", "--bind", "0.0.0.0:8081", "--reload", "--log-level", "debug", "--access-logfile", "-", "--error-logfile", "-", "--proxy-allow-from", "0.0.0.0", "--forwarded-allow-ips", "0.0.0.0"]
+          env:
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: name
+                  name: db-configuration
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  key: host
+                  name: db-configuration
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  key: port
+                  name: db-configuration
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  key: username
+                  name: db-configuration
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: db-configuration
+            - name: API_TITLE
+              value: client-app # TODO
+            - name: API_VERSION
+              value: v0.0.0 # TODO
+            - name: ARANGO_DB_HOST
+              value: http://{{ .Values.arangoDeployment.name }}.{{.Release.Namespace}}.svc.cluster.local
+            - name: ARANGO_DB_SYS_DB
+              value: _system
+            - name: ARANGO_DB_USERNAME
+              value: root
+            - name: ARANGO_DB_PASSWORD
+              value: ''
+            - name: ARANGO_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: ARANGO_DB_NAME
+                  name: client-app-configuration
+            - name: ARANGO_DB_GRAPH_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: ARANGO_DB_GRAPH_NAME
+                  name: client-app-configuration
+            - name: REDIS_HOST
+              value: {{ include "client-app.fullname" . }}-redis-master.{{.Release.Namespace}}.svc.cluster.local
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: REDIS_USERNAME
+                  name: redis-credentials
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: REDIS_PASSWORD
+                  name: redis-credentials
+            - name: GOOGLE_CLOUD_PROJECT
+              valueFrom:
+                secretKeyRef:
+                  key: GOOGLE_CLOUD_PROJECT
+                  name: client-app-configuration
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  key: GOOGLE_APPLICATION_CREDENTIALS
+                  name: client-app-configuration
+            - name: SENDGRID_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: SENDGRID_API_KEY
+                  name: client-app-configuration
+            - name: SENDGRID_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  key: SENDGRID_EMAIL
+                  name: client-app-configuration
+            - name: SPACY_NLP_MODEL
+              valueFrom:
+                secretKeyRef:
+                  key: SPACY_NLP_MODEL
+                  name: client-app-configuration
+            - name: DOC_SLIDING_WINDOW_SIZE
+              valueFrom:
+                secretKeyRef:
+                  key: DOC_SLIDING_WINDOW_SIZE
+                  name: client-app-configuration
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: SECRET_KEY
+                  name: client-app-configuration
+            - name: ALGORITHM
+              valueFrom:
+                secretKeyRef:
+                  key: ALGORITHM
+                  name: client-app-configuration
+            - name: ACCESS_TOKEN_EXPIRE_MINUTES
+              valueFrom:
+                secretKeyRef:
+                  key: ACCESS_TOKEN_EXPIRE_MINUTES
+                  name: client-app-configuration
+            - name: ACCESS_TOKEN_DATE_FORMAT
+              valueFrom:
+                secretKeyRef:
+                  key: ACCESS_TOKEN_DATE_FORMAT
+                  name: client-app-configuration
+            - name: SECRET_KEY_RESET_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: SECRET_KEY_RESET_PASSWORD
+                  name: client-app-configuration
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: OPENAI_API_KEY
+                  name: client-app-configuration
+            - name: OPENAI_MODEL
+              valueFrom:
+                secretKeyRef:
+                  key: OPENAI_MODEL
+                  name: client-app-configuration
+            - name: WHITELISTED_EMAILS
+              value: "[]"
+          securityContext:
+            {{- toYaml .Values.clientApp.securityContext | nindent 12 }}
+          image: "{{ .Values.clientApp.image.repository }}:{{ .Values.clientApp.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.clientApp.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.clientApp.service.port }}
+              protocol: TCP
+          livenessProbe: # Remove probes if you are using sleep command when troubleshooting
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.clientApp.resources | nindent 12 }}
+          {{- with .Values.clientApp.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.clientApp.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.clientApp.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.clientApp.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.clientApp.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

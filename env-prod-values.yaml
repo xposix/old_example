@@ -1,0 +1,65 @@
+# Prod Environment Values. They overwrite the default values in values.yaml
+clientApp:
+  image:
+    repository: 012345678901.dkr.ecr.eu-west-2.amazonaws.com/client-app
+    pullPolicy: IfNotPresent
+    tag: substituteme
+
+  resources:
+    limits:
+      cpu: 3955m
+      memory: 14860Mi
+    requests:
+      cpu: 3955m
+      memory: 12360Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 12
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+
+celery:
+  image:
+    repository: 012345678901.dkr.ecr.eu-west-2.amazonaws.com/celery
+    pullPolicy: IfNotPresent
+    tag: substituteme
+
+  resources:
+    limits:
+      cpu: 2048m
+      memory: 14860Mi
+    requests:
+      cpu: 2048m
+      memory: 12360Mi
+  
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+
+arangoDeployment:
+  # Very interesting: https://arangodb.gitlab.io/kube-arangodb/docs/storage.html
+  name: prod-cluster
+  mode: Cluster
+  image: arangodb/arangodb:3.10.8
+  agents:
+    count: 3 # Minimum 3 agents for production, doesn't allow less
+    resources:
+      limits:
+        cpu: 2048m
+        memory: 2048Mi
+      requests:
+        cpu: 500m
+        memory: 256Mi
+  environment: Production
+  service:
+    type: None
+    port: 8529
+
+redis:
+  replica:
+    replicaCount: 1

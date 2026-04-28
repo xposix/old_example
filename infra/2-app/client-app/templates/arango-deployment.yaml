@@ -1,0 +1,38 @@
+# Full reference at: https://gitlab.com/arangodb/kube-arangodb/blob/master/docs/api/ArangoDeployment.V1.md
+apiVersion: "database.arangodb.com/v1"
+kind: "ArangoDeployment"
+metadata:
+  name: {{ .Values.arangoDeployment.name }}
+spec:
+  mode: {{ .Values.arangoDeployment.mode }}
+  image: {{ .Values.arangoDeployment.image }}
+  environment: {{ .Values.arangoDeployment.environment }}
+  externalAccess:
+    type: {{ .Values.arangoDeployment.service.type }}
+  agents:
+    count: {{ .Values.arangoDeployment.agents.count }}
+    storageClassName: gp3
+    nodeSelector:
+      intent: apps
+    resources:
+      {{- toYaml .Values.arangoDeployment.agents.resources | nindent 6 }}
+  # architecture: 
+  #   - arm64
+  type: {{ .Values.arangoDeployment.service.type }}
+  publishNotReadyAddresses: true
+  dbservers:
+    volumeClaimTemplate:
+      spec:
+        storageClassName: gp3
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Gi
+        volumeMode: Filesystem
+  tls:
+    caSecretName: None
+  ports:
+    - protocol: TCP
+      port: {{ .Values.arangoDeployment.service.port }}
+      targetPort: {{ .Values.arangoDeployment.service.port }}

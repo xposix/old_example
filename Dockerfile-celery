@@ -1,0 +1,28 @@
+# Use Python 3.10 as the base image
+FROM python:3.10
+
+# working directory in the container
+WORKDIR /code
+
+COPY ./clients /code/clients
+#COPY ./cardiffnlp /code/cardiffnlp
+COPY ./external_packages /code/external_packages
+COPY ./skilful-nexus-410818-b21562d8bd0a.json /code/skilful-nexus-410818-b21562d8bd0a.json
+
+# Copy Pipenv files
+COPY ./Pipfile /code/Pipfile
+COPY ./Pipfile.lock /code/Pipfile.lock
+
+ENV PYTHONPATH=/code:$PYTHONPATH
+
+# Install dependencies
+RUN pip install pipenv && pipenv install --system --deploy
+
+# Install the latest version of PyTorch using cuda
+RUN pip install torch --extra-index-url https://download.pytorch.org/whl/cu113
+
+# Install spacy separatelly as I had issues
+RUN pip install spacy
+
+# Copy the application code to the container
+COPY ./service /code/service

@@ -1,0 +1,61 @@
+# Prod Environment Values. They overwrite the default values in values.yaml
+clientApp:
+  image:
+    repository: 012345678901.dkr.ecr.eu-west-2.amazonaws.com/client-app
+    pullPolicy: Always
+    tag: latest
+
+  resources:
+    limits:
+      cpu: 2048m
+      memory: 6800Mi
+    requests:
+      cpu: 2048m
+      memory: 5500Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+
+celery:
+  image:
+    repository: 012345678901.dkr.ecr.eu-west-2.amazonaws.com/celery
+    pullPolicy: Always
+    tag: latest
+
+  resources:
+    limits:
+      cpu: 1024m
+      memory: 14860Mi
+    requests:
+      cpu: 1024m
+      memory: 6180Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+
+arangoDeployment:
+  name: dev-cluster
+  mode: Single # Or Cluster
+  image: arangodb/arangodb:3.10.8
+  agents:
+    count: 1
+    resources:
+      limits:
+        cpu: 1024m
+        memory: 512Mi
+      requests:
+        storage: 20Gi
+        cpu: 500m
+        memory: 256Mi
+  environment: Development
+  service:
+    type: None
+    port: 8529

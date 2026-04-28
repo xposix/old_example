@@ -1,0 +1,200 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery
+  labels:
+    {{- include "celery.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.celery.autoscaling.enabled }}
+  replicas: {{ .Values.celery.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "celery.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.celery.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "celery.labels" . | nindent 8 }}
+        {{- with .Values.celery.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.celery.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "celery.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.celery.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}-celery
+          # command: ["sleep"] # Use this for troubleshooting, remember to disable livenessProbe and readinessProbe
+          # args: ["9999"]
+          command: ["celery"]
+          args: ["-A", "service.celery_app", "worker", "--pool=prefork", "--concurrency=2", "--loglevel=debug"]
+          env:
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: name
+                  name: db-configuration
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  key: host
+                  name: db-configuration
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  key: port
+                  name: db-configuration
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  key: username
+                  name: db-configuration
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: db-configuration
+            - name: API_TITLE
+              value: client-app # TODO
+            - name: API_VERSION
+              value: v0.0.0 # TODO
+            - name: ARANGO_DB_HOST
+              value: https://{{ .Values.arangoDeployment.name }}.{{.Release.Namespace}}.svc.cluster.local # TODO CHANGE THIS
+            - name: ARANGO_DB_SYS_DB
+              value: _system
+            - name: ARANGO_DB_USERNAME
+              value: root
+            - name: ARANGO_DB_PASSWORD
+              value: ''
+            - name: ARANGO_DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: ARANGO_DB_NAME
+                  name: client-app-configuration
+            - name: ARANGO_DB_GRAPH_NAME
+              valueFrom:
+                secretKeyRef:
+                  key: ARANGO_DB_GRAPH_NAME
+                  name: client-app-configuration
+            - name: REDIS_HOST
+              value: {{ include "client-app.fullname" . }}-redis-master.{{.Release.Namespace}}.svc.cluster.local
+            - name: REDIS_PORT
+              value: "6379"
+            - name: REDIS_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  key: REDIS_USERNAME
+                  name: redis-credentials
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: REDIS_PASSWORD
+                  name: redis-credentials
+            - name: GOOGLE_CLOUD_PROJECT
+              valueFrom:
+                secretKeyRef:
+                  key: GOOGLE_CLOUD_PROJECT
+                  name: client-app-configuration
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              valueFrom:
+                secretKeyRef:
+                  key: GOOGLE_APPLICATION_CREDENTIALS
+                  name: client-app-configuration
+            - name: SENDGRID_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: SENDGRID_API_KEY
+                  name: client-app-configuration
+            - name: SENDGRID_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  key: SENDGRID_EMAIL
+                  name: client-app-configuration
+            - name: SPACY_NLP_MODEL
+              valueFrom:
+                secretKeyRef:
+                  key: SPACY_NLP_MODEL
+                  name: client-app-configuration
+            - name: DOC_SLIDING_WINDOW_SIZE
+              valueFrom:
+                secretKeyRef:
+                  key: DOC_SLIDING_WINDOW_SIZE
+                  name: client-app-configuration
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: SECRET_KEY
+                  name: client-app-configuration
+            - name: ALGORITHM
+              valueFrom:
+                secretKeyRef:
+                  key: ALGORITHM
+                  name: client-app-configuration
+            - name: ACCESS_TOKEN_EXPIRE_MINUTES
+              valueFrom:
+                secretKeyRef:
+                  key: ACCESS_TOKEN_EXPIRE_MINUTES
+                  name: client-app-configuration
+            - name: ACCESS_TOKEN_DATE_FORMAT
+              valueFrom:
+                secretKeyRef:
+                  key: ACCESS_TOKEN_DATE_FORMAT
+                  name: client-app-configuration
+            - name: SECRET_KEY_RESET_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: SECRET_KEY_RESET_PASSWORD
+                  name: client-app-configuration
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: OPENAI_API_KEY
+                  name: client-app-configuration
+            - name: OPENAI_MODEL
+              valueFrom:
+                secretKeyRef:
+                  key: OPENAI_MODEL
+                  name: client-app-configuration
+            - name: WHITELISTED_EMAILS # We may not need this one
+              value: "[]"
+            - name: SERVICE_PROTOCOL
+              value: "http"
+            - name: SERVICE_HOST
+              value: "{{ include "client-app.fullname" . }}.{{.Release.Namespace}}.svc.cluster.local"
+            - name: SERVICE_PORT
+              value: "8081"
+
+          securityContext:
+            {{- toYaml .Values.celery.securityContext | nindent 12 }}
+          image: "{{ .Values.celery.image.repository }}:{{ .Values.celery.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.celery.image.pullPolicy }}
+          resources:
+            {{- toYaml .Values.celery.resources | nindent 12 }}
+          {{- with .Values.celery.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.celery.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.celery.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.celery.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.celery.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

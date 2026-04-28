@@ -1,0 +1,24 @@
+apiVersion: external-secrets.io/v1beta1
+kind: SecretStore
+metadata:
+  name: exampleco-configuration
+spec:
+  provider:
+    aws:
+      service: SecretsManager
+      region: {{ .Values.secretConfiguration.region_name }}
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: db-configuration
+spec:
+  refreshInterval: 1m
+  secretStoreRef:
+    name: exampleco-configuration #The secret store name we have just created.
+    kind: SecretStore
+  target:
+    name: db-configuration # Secret name in k8s
+  dataFrom:
+    - extract:
+        key: {{.Values.clientApp.dbSecretArn}} # name of the GCPSM secret

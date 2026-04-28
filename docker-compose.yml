@@ -1,0 +1,54 @@
+version: '3.3'
+services:
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile-app
+    ports:
+      - "8081:8081"
+    depends_on:
+      - arangodb
+      - redis
+    restart: "no"
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 8g
+
+  arangodb:
+    image: arangodb/arangodb:3.7.10
+    environment:
+      ARANGO_ROOT_PASSWORD: ""
+    volumes:
+      - arangodb-data:/var/lib/arangodb3
+    ports:
+      - "8529:8529"
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/dataredis
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile-celery
+    command: celery -A service.celery_app worker --pool=prefork --concurrency=2 --loglevel=debug
+    depends_on:
+      - redis
+    restart: "no"
+#    deploy:
+#      resources:
+#        limits:
+#          cpus: '6'         # Set the number of CPU cores
+#          memory: 8G        # Set the memory limit (e.g., 2 gigabytes)
+#        reservations:
+#          cpus: '1'  # Adjust the CPU reservation as needed
+
+
+volumes:
+  redis-data:
+  arangodb-data:
